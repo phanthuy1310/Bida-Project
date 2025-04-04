@@ -21,6 +21,15 @@ import model.Menu;
 import dao.MenuDAO;
 import javax.swing.table.DefaultTableModel;
 
+import org.jfree.chart.ChartFactory; // Để tạo biểu đồ
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.chart.plot.CategoryPlot;   // Lớp CategoryPlot        
+
+import org.jfree.chart.renderer.category.LineAndShapeRenderer;
+
 /**
  *
  * @author nguye
@@ -37,6 +46,159 @@ public class JHome extends javax.swing.JFrame {
         loadTable();
 
     }
+
+            //Biểu đồ Đường (Line Chart)
+    private void createAndShowChart(DefaultCategoryDataset dataset, String chartTitle, String xAxisLabel, String yAxisLabel) {
+        // Tạo biểu đồ đường với dataset
+        JFreeChart chart = ChartFactory.createLineChart(
+                chartTitle, // Tiêu đề biểu đồ
+                xAxisLabel, // Nhãn trục X
+                yAxisLabel, // Nhãn trục Y
+                dataset, // Dữ liệu
+                PlotOrientation.VERTICAL, // Hướng biểu đồ
+                true, // Hiển thị chú thích
+                true, // Hiển thị tooltip
+                false // Không dùng URL
+        );
+
+        // Tùy chỉnh biểu đồ đường
+        CategoryPlot plot = (CategoryPlot) chart.getPlot();
+        plot.setBackgroundPaint(Color.white);  // Màu nền của biểu đồ
+        plot.setDomainGridlinesVisible(true);  // Hiển thị các đường lưới trục X
+        plot.setRangeGridlinesVisible(true);   // Hiển thị các đường lưới trục Y
+        plot.setDomainGridlinePaint(Color.gray); // Màu các đường lưới
+
+        // Tùy chỉnh các đường vẽ
+        LineAndShapeRenderer renderer = (LineAndShapeRenderer) plot.getRenderer();
+        renderer.setSeriesPaint(0, Color.red);  // Màu sắc cho các đường vẽ
+        // Tạo panel để hiển thị biểu đồ
+        ChartPanel chartPanel = new ChartPanel(chart);
+        chartPanel.setPreferredSize(new java.awt.Dimension(800, 600));
+
+        // Tạo cửa sổ JFrame để hiển thị biểu đồ
+        JFrame frame = new JFrame(chartTitle);
+
+        // Tạo nút "Quay lại"
+        JButton backButton = new JButton("Quay lại");
+        backButton.setPreferredSize(new Dimension(100, 30));
+        backButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Có thể đóng cửa sổ hoặc chuyển về màn hình trước đó
+                frame.dispose();  // Đóng cửa sổ hiện tại
+            }
+        });
+
+        // Tạo một JPanel để chứa biểu đồ và nút "Quay lại"
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(chartPanel, BorderLayout.CENTER);
+        panel.add(backButton, BorderLayout.SOUTH);
+
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.getContentPane().add(panel);
+        frame.pack();
+        frame.setVisible(true);
+    }
+
+    public void StatisticByDay() {
+        // Lọc dữ liệu trong tháng và năm hiện tại
+        String sql = "SELECT DAY(timeStart) AS day, SUM(total) AS total_amount FROM bill "
+                + "WHERE YEAR(timeStart) = YEAR(CURDATE()) AND MONTH(timeStart) = MONTH(CURDATE()) "
+                + "GROUP BY DAY(timeStart)";
+
+        // Tạo dataset cho biểu đồ
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        
+        try (Connection conn = ConnectionProvider.getConn(); 
+                Statement stmt = conn.createStatement(); 
+                ResultSet rs = stmt.executeQuery(sql)) {
+
+            // Lấy dữ liệu từ ResultSet và thêm vào dataset
+            while (rs.next()) {
+                String day = rs.getString("day");
+                double totalAmount = rs.getDouble("total_amount");
+                dataset.addValue(totalAmount, "Tổng số tiền", day); // Dữ liệu cho biểu đồ
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        // Gọi phương thức chung để tạo và hiển thị biểu đồ
+        createAndShowChart(dataset, "Thống kê Tổng Số Tiền Theo Ngày", "Ngày", "Tổng Số Tiền");
+    }
+
+    public void StatisticsByMonth() {
+        // Lọc dữ liệu trong năm hiện tại
+        String sql = "SELECT MONTH(timeStart) AS month, SUM(total) AS total_amount FROM bill "
+                + "WHERE YEAR(timeStart) = YEAR(CURDATE()) "
+                + "GROUP BY MONTH(timeStart)";
+
+        // Tạo dataset cho biểu đồ
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        
+        try (Connection conn = ConnectionProvider.getConn(); 
+                Statement stmt = conn.createStatement(); 
+                ResultSet rs = stmt.executeQuery(sql)) {
+            // Lấy dữ liệu từ ResultSet và thêm vào dataset
+            while (rs.next()) {
+                int month = rs.getInt("month");
+                double totalAmount = rs.getDouble("total_amount");
+                dataset.addValue(totalAmount, "Tổng số tiền", "Tháng " + month); // Dữ liệu cho biểu đồ
+            }
+           
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        // Gọi phương thức chung để tạo và hiển thị biểu đồ
+        createAndShowChart(dataset, "Thống kê Tổng Số Tiền Theo Tháng", "Tháng", "Tổng Số Tiền");
+    }
+
+    public void StatisticsByYear() {
+        // Cập nhật câu lệnh SQL để nhóm theo năm
+        String sql = "SELECT YEAR(timeStart) AS year, SUM(total) AS total_amount FROM bill GROUP BY YEAR(timeStart)";
+
+        // Tạo dataset cho biểu đồ
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        
+        try (Connection conn = ConnectionProvider.getConn(); 
+                Statement stmt = conn.createStatement(); 
+                ResultSet rs = stmt.executeQuery(sql)) {
+
+            // Lấy dữ liệu từ ResultSet và thêm vào dataset
+            while (rs.next()) {
+                int year = rs.getInt("year");
+                double totalAmount = rs.getDouble("total_amount");
+                dataset.addValue(totalAmount, "Tổng số tiền", "Năm " + year); // Dữ liệu cho biểu đồ
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        // Gọi phương thức chung để tạo và hiển thị biểu đồ
+        createAndShowChart(dataset, "Thống kê Tổng Số Tiền Theo Năm", "Năm", "Tổng Số Tiền");
+    }
+
+      private void jMenuStatisticalDayActionPerformed(java.awt.event.ActionEvent evt) {                                                    
+        // TODO add your handling code here:
+        StatisticByDay();
+    }                                                   
+
+    private void jMenuStatisticalMonthActionPerformed(java.awt.event.ActionEvent evt) {                                                      
+        // TODO add your handling code here:
+        StatisticsByMonth();
+    }                                                     
+
+    private void jMenuStatisticalYearActionPerformed(java.awt.event.ActionEvent evt) {                                                     
+        // TODO add your handling code here:
+        StatisticsByYear();
+    }                                                    
+    
 
     /**
      * This method is called from within the constructor to initialize the form.
